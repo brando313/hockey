@@ -15,6 +15,8 @@ export default function HockeyIQGame() {
   const [isTouchDevice, setIsTouchDevice] = useState(false);
   const [forceTouchControls, setForceTouchControls] = useState(false);
   const [viewport, setViewport] = useState({ width: 900, scale: 1 });
+  const [joystickVisual, setJoystickVisual] = useState({ x: 0, y: 0 });
+
   const goalOverlayRef = useRef(false);
   const goalTypeRef = useRef("player");
 
@@ -89,14 +91,12 @@ export default function HockeyIQGame() {
     defenderCarryTarget.current = { x: 220, y: 250, timer: 0 };
     defenderShotCooldown.current = 0;
     clearPossession();
-    setMessage(
-      showTouchControls
-        ? "Two-way play. Win the puck, defend your net, and attack theirs."
-        : "Two-way play. Win the puck, defend your net, and attack theirs."
-    );
+    setMessage("Two-way play. Win the puck, defend your net, and attack theirs.");
     setGoalOverlay(false);
     goalOverlayRef.current = false;
     setGoalText("GOAL!");
+    moveInput.current = { x: 0, y: 0 };
+    setJoystickVisual({ x: 0, y: 0 });
   };
 
   const spawnDefenders = (lvl) => {
@@ -113,10 +113,8 @@ export default function HockeyIQGame() {
     const detectTouch = () => {
       const touchCapable =
         typeof navigator !== "undefined" &&
-        (
-          (navigator.maxTouchPoints && navigator.maxTouchPoints > 0) ||
-          (navigator.msMaxTouchPoints && navigator.msMaxTouchPoints > 0)
-        );
+        ((navigator.maxTouchPoints && navigator.maxTouchPoints > 0) ||
+          (navigator.msMaxTouchPoints && navigator.msMaxTouchPoints > 0));
 
       const touchEventSupport =
         typeof window !== "undefined" && "ontouchstart" in window;
@@ -932,6 +930,7 @@ export default function HockeyIQGame() {
   const updateJoystickFromTouch = (touch) => {
     const base = joystickBaseRef.current;
     if (!base) return;
+
     const rect = base.getBoundingClientRect();
     const centerX = rect.left + rect.width / 2;
     const centerY = rect.top + rect.height / 2;
@@ -940,10 +939,12 @@ export default function HockeyIQGame() {
     const max = rect.width / 2;
     const dist = Math.sqrt(dx * dx + dy * dy) || 1;
     const clamped = Math.min(dist, max);
-    moveInput.current = {
-      x: (dx / dist) * (clamped / max),
-      y: (dy / dist) * (clamped / max),
-    };
+
+    const x = (dx / dist) * (clamped / max);
+    const y = (dy / dist) * (clamped / max);
+
+    moveInput.current = { x, y };
+    setJoystickVisual({ x, y });
   };
 
   const handleJoystickStart = (e) => {
@@ -966,24 +967,29 @@ export default function HockeyIQGame() {
     if (touch) {
       joystickTouchId.current = null;
       moveInput.current = { x: 0, y: 0 };
+      setJoystickVisual({ x: 0, y: 0 });
     }
   };
 
-  const joystickSize = showTouchControls ? 160 : 140;
-  const actionSize = showTouchControls ? 120 : 110;
-  const stickSize = showTouchControls ? 64 : 56;
+  const joystickSize = showTouchControls ? 140 : 140;
+  const actionSize = showTouchControls ? 104 : 110;
+  const stickSize = showTouchControls ? 56 : 56;
 
   return (
     <div
       ref={wrapRef}
       style={{
         textAlign: "center",
-        padding: showTouchControls ? 12 : 20,
+        padding: showTouchControls ? 10 : 20,
         fontFamily: "Arial, sans-serif",
         touchAction: "none",
         minHeight: "100vh",
+        height: "100dvh",
         background: "linear-gradient(180deg, #f8fbff 0%, #eef6ff 100%)",
         boxSizing: "border-box",
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
       }}
     >
       <h1
@@ -1005,6 +1011,10 @@ export default function HockeyIQGame() {
           boxShadow: "0 8px 24px rgba(15,23,42,0.08)",
           padding: showTouchControls ? 10 : 14,
           boxSizing: "border-box",
+          display: "flex",
+          flexDirection: "column",
+          flex: showTouchControls ? "1 1 auto" : "0 0 auto",
+          minHeight: 0,
         }}
       >
         <canvas
@@ -1014,11 +1024,13 @@ export default function HockeyIQGame() {
           style={{
             width: "100%",
             height: "auto",
+            maxHeight: showTouchControls ? "56dvh" : "none",
             aspectRatio: `${RINK_W} / ${RINK_H}`,
             border: "1px solid #cbd5e1",
             borderRadius: 12,
             background: "white",
             display: "block",
+            margin: "0 auto",
           }}
         />
 
@@ -1112,7 +1124,7 @@ export default function HockeyIQGame() {
         </p>
       </div>
 
-      <div style={{ marginTop: 10 }}>
+      <div style={{ marginTop: 8, flexShrink: 0 }}>
         <button
           onClick={() => setForceTouchControls((v) => !v)}
           style={{
@@ -1134,11 +1146,13 @@ export default function HockeyIQGame() {
           style={{
             width: viewport.width,
             maxWidth: "100%",
-            margin: "14px auto 0",
+            margin: "10px auto 0",
             display: "flex",
             justifyContent: "space-between",
             alignItems: "flex-end",
             gap: 14,
+            paddingBottom: "max(8px, env(safe-area-inset-bottom))",
+            flexShrink: 0,
           }}
         >
           <div
@@ -1167,9 +1181,9 @@ export default function HockeyIQGame() {
                 borderRadius: "50%",
                 background: "rgba(37,99,235,0.65)",
                 position: "absolute",
-                left: `calc(50% - ${stickSize / 2}px + ${moveInput.current.x * 40}px)`,
-                top: `calc(50% - ${stickSize / 2}px + ${moveInput.current.y * 40}px)`,
-                transition: joystickTouchId.current === null ? "all 0.12s ease-out" : "none",
+                left: `calc(50% - ${stickSize / 2}px + ${joystickVisual.x * 40}px)`,
+                top: `calc(50% - ${stickSize / 2}px + ${joystickVisual.y * 40}px)`,
+                transition: joystickTouchId.current === null ? "all 0.08s linear" : "none",
                 boxShadow: "0 4px 10px rgba(37,99,235,0.25)",
               }}
             />
