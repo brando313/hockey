@@ -13,7 +13,7 @@ export default function HockeyIQGame() {
   const [goalOverlay, setGoalOverlay] = useState(false);
   const [goalText, setGoalText] = useState("GOAL!");
   const [isTouchDevice, setIsTouchDevice] = useState(false);
-  const [forceTouchControls, setForceTouchControls] = useState(false);
+  const [forceTouchControls, setForceTouchControls] = useState(true);
   const [viewport, setViewport] = useState({ width: 900, scale: 1 });
   const [joystickVisual, setJoystickVisual] = useState({ x: 0, y: 0 });
 
@@ -970,9 +970,9 @@ export default function HockeyIQGame() {
     }
   };
 
-  const joystickSize = showTouchControls ? 120 : 140;
-  const actionSize = showTouchControls ? 92 : 110;
-  const stickSize = showTouchControls ? 44 : 56;
+const joystickSize = showTouchControls ? 110 : 140;
+const actionSize = showTouchControls ? 84 : 110;
+const stickSize = showTouchControls ? 40 : 56;
 
   return (
     <div
@@ -1134,17 +1134,17 @@ export default function HockeyIQGame() {
 
       {showTouchControls && (
         <div
-          style={{
-            width: "100%",
-            maxWidth: viewport.width,
-            margin: "10px auto 0",
-            padding: "0 12px max(8px, env(safe-area-inset-bottom))",
-            boxSizing: "border-box",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-end",
-            gap: 12,
-          }}
+style={{
+  width: "100%",
+  maxWidth: viewport.width,
+  margin: "8px auto 0",
+  padding: "0 8px 8px",
+  boxSizing: "border-box",
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "flex-end",
+  gap: 8,
+}}
         >
           <div
             ref={joystickBaseRef}
