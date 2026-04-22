@@ -19,7 +19,6 @@ export default function HockeyIQGame() {
 
   const goalOverlayRef = useRef(false);
   const goalTypeRef = useRef("player");
-
   const showTouchControls = isTouchDevice || forceTouchControls;
 
   const RINK_W = 800;
@@ -971,9 +970,9 @@ export default function HockeyIQGame() {
     }
   };
 
-  const joystickSize = showTouchControls ? 140 : 140;
-  const actionSize = showTouchControls ? 104 : 110;
-  const stickSize = showTouchControls ? 56 : 56;
+  const joystickSize = showTouchControls ? 120 : 140;
+  const actionSize = showTouchControls ? 92 : 110;
+  const stickSize = showTouchControls ? 44 : 56;
 
   return (
     <div
@@ -984,12 +983,9 @@ export default function HockeyIQGame() {
         fontFamily: "Arial, sans-serif",
         touchAction: "none",
         minHeight: "100vh",
-        height: "100dvh",
         background: "linear-gradient(180deg, #f8fbff 0%, #eef6ff 100%)",
         boxSizing: "border-box",
-        display: "flex",
-        flexDirection: "column",
-        overflow: "hidden",
+        overflowX: "hidden",
       }}
     >
       <h1
@@ -1011,10 +1007,6 @@ export default function HockeyIQGame() {
           boxShadow: "0 8px 24px rgba(15,23,42,0.08)",
           padding: showTouchControls ? 10 : 14,
           boxSizing: "border-box",
-          display: "flex",
-          flexDirection: "column",
-          flex: showTouchControls ? "1 1 auto" : "0 0 auto",
-          minHeight: 0,
         }}
       >
         <canvas
@@ -1024,7 +1016,6 @@ export default function HockeyIQGame() {
           style={{
             width: "100%",
             height: "auto",
-            maxHeight: showTouchControls ? "56dvh" : "none",
             aspectRatio: `${RINK_W} / ${RINK_H}`,
             border: "1px solid #cbd5e1",
             borderRadius: 12,
@@ -1144,15 +1135,15 @@ export default function HockeyIQGame() {
       {showTouchControls && (
         <div
           style={{
-            width: viewport.width,
-            maxWidth: "100%",
+            width: "100%",
+            maxWidth: viewport.width,
             margin: "10px auto 0",
+            padding: "0 12px max(8px, env(safe-area-inset-bottom))",
+            boxSizing: "border-box",
             display: "flex",
             justifyContent: "space-between",
             alignItems: "flex-end",
-            gap: 14,
-            paddingBottom: "max(8px, env(safe-area-inset-bottom))",
-            flexShrink: 0,
+            gap: 12,
           }}
         >
           <div
@@ -1181,15 +1172,15 @@ export default function HockeyIQGame() {
                 borderRadius: "50%",
                 background: "rgba(37,99,235,0.65)",
                 position: "absolute",
-                left: `calc(50% - ${stickSize / 2}px + ${joystickVisual.x * 40}px)`,
-                top: `calc(50% - ${stickSize / 2}px + ${joystickVisual.y * 40}px)`,
+                left: `calc(50% - ${stickSize / 2}px + ${joystickVisual.x * 30}px)`,
+                top: `calc(50% - ${stickSize / 2}px + ${joystickVisual.y * 30}px)`,
                 transition: joystickTouchId.current === null ? "all 0.08s linear" : "none",
                 boxShadow: "0 4px 10px rgba(37,99,235,0.25)",
               }}
             />
           </div>
 
-          <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
             <button
               onTouchStart={startBattleTouch}
               onTouchEnd={stopBattleTouch}
@@ -1201,7 +1192,7 @@ export default function HockeyIQGame() {
                 border: "none",
                 background: "#16a34a",
                 color: "white",
-                fontSize: 24,
+                fontSize: 20,
                 fontWeight: 800,
                 boxShadow: "0 8px 18px rgba(22,163,74,0.25)",
                 touchAction: "manipulation",
@@ -1218,7 +1209,7 @@ export default function HockeyIQGame() {
                 border: "none",
                 background: "#2563eb",
                 color: "white",
-                fontSize: 24,
+                fontSize: 20,
                 fontWeight: 800,
                 boxShadow: "0 8px 18px rgba(37,99,235,0.25)",
                 touchAction: "manipulation",
