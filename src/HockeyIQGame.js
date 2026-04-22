@@ -1115,20 +1115,20 @@ export default function HockeyIQGame() {
       </div>
 
       <div
-        style={{
-          position: "fixed",
-          left: 0,
-          right: 0,
-          bottom: 0,
-          width: "100%",
-          padding: "8px 10px max(10px, env(safe-area-inset-bottom))",
-          boxSizing: "border-box",
-          background: "rgba(248,251,255,0.96)",
-          backdropFilter: "blur(8px)",
-          WebkitBackdropFilter: "blur(8px)",
-          borderTop: "1px solid rgba(203,213,225,0.9)",
-          zIndex: 50,
-        }}
+style={{
+  position: "fixed",
+  left: 0,
+  right: 0,
+  bottom: 0,
+  width: "100%",
+  padding: "8px 10px max(10px, env(safe-area-inset-bottom))",
+  boxSizing: "border-box",
+  background: "transparent",
+  backdropFilter: "none",
+  WebkitBackdropFilter: "none",
+  borderTop: "none",
+  zIndex: 50,
+}}
       >
         <div
           style={{
