@@ -10,16 +10,14 @@ export default function HockeyIQGame() {
   const [message, setMessage] = useState("Retrieve the puck, battle, defend, and score.");
   const [battleMeter, setBattleMeter] = useState(0);
   const [stripMeter, setStripMeter] = useState(0);
-  const [goalOverlay, setGoalOverlay] = useState(false);
   const [goalText, setGoalText] = useState("GOAL!");
-  const [isTouchDevice, setIsTouchDevice] = useState(false);
-  const [forceTouchControls, setForceTouchControls] = useState(true);
-  const [viewport, setViewport] = useState({ width: 900, scale: 1 });
   const [joystickVisual, setJoystickVisual] = useState({ x: 0, y: 0 });
+  const [viewport, setViewport] = useState({ width: 900, scale: 1 });
 
   const goalOverlayRef = useRef(false);
   const goalTypeRef = useRef("player");
-  const showTouchControls = isTouchDevice || forceTouchControls;
+
+  const showTouchControls = true;
 
   const RINK_W = 800;
   const RINK_H = 500;
@@ -33,6 +31,7 @@ export default function HockeyIQGame() {
   const defenders = useRef([]);
   const oppGoalie = useRef({ x: 735, y: 250, radius: 8, speed: 2.0 });
   const teamGoalie = useRef({ x: 65, y: 250, radius: 9, speed: 2.15 });
+
   const keys = useRef({});
   const animationRef = useRef(null);
   const hasPuckRef = useRef(false);
@@ -91,7 +90,6 @@ export default function HockeyIQGame() {
     defenderShotCooldown.current = 0;
     clearPossession();
     setMessage("Two-way play. Win the puck, defend your net, and attack theirs.");
-    setGoalOverlay(false);
     goalOverlayRef.current = false;
     setGoalText("GOAL!");
     moveInput.current = { x: 0, y: 0 };
@@ -109,30 +107,12 @@ export default function HockeyIQGame() {
   };
 
   useEffect(() => {
-    const detectTouch = () => {
-      const touchCapable =
-        typeof navigator !== "undefined" &&
-        ((navigator.maxTouchPoints && navigator.maxTouchPoints > 0) ||
-          (navigator.msMaxTouchPoints && navigator.msMaxTouchPoints > 0));
-
-      const touchEventSupport =
-        typeof window !== "undefined" && "ontouchstart" in window;
-
-      const coarsePointer =
-        typeof window !== "undefined" &&
-        typeof window.matchMedia === "function" &&
-        window.matchMedia("(pointer: coarse)").matches;
-
-      setIsTouchDevice(Boolean(touchCapable || touchEventSupport || coarsePointer));
-    };
-
     const measure = () => {
       const width = wrapRef.current?.clientWidth || window.innerWidth || 900;
       const usable = Math.min(width - 16, 980);
       setViewport({ width: usable, scale: usable / RINK_W });
     };
 
-    detectTouch();
     measure();
 
     const down = (e) => {
@@ -203,13 +183,11 @@ export default function HockeyIQGame() {
     const freezeAndAdvance = (text, scorer) => {
       goalTypeRef.current = scorer;
       setGoalText(text);
-      setGoalOverlay(true);
       goalOverlayRef.current = true;
       setMessage(text);
 
       setTimeout(() => {
         if (!mounted) return;
-        setGoalOverlay(false);
         goalOverlayRef.current = false;
         setGoalText("GOAL!");
         if (scorer === "player") {
@@ -419,7 +397,10 @@ export default function HockeyIQGame() {
       if (defenderWithPuck) {
         const nearHomeNet = defenderWithPuck.x < 165;
         const insideLane = defenderWithPuck.y > 170 && defenderWithPuck.y < 330;
-        const openToShoot = distance(defenderWithPuck, player.current) > 26;
+        const openToShoot = Math.sqrt(
+          Math.pow(defenderWithPuck.x - player.current.x, 2) +
+          Math.pow(defenderWithPuck.y - player.current.y, 2)
+        ) > 26;
 
         if (
           nearHomeNet &&
@@ -452,7 +433,10 @@ export default function HockeyIQGame() {
 
         if (
           defenderCarryTarget.current.timer <= 0 ||
-          distance(defenderWithPuck, defenderCarryTarget.current) < 24
+          Math.sqrt(
+            Math.pow(defenderWithPuck.x - defenderCarryTarget.current.x, 2) +
+            Math.pow(defenderWithPuck.y - defenderCarryTarget.current.y, 2)
+          ) < 24
         ) {
           defenderCarryTarget.current = {
             x: defenderWithPuck.x > 190 ? 110 + Math.random() * 80 : 90 + Math.random() * 55,
@@ -491,7 +475,11 @@ export default function HockeyIQGame() {
         return;
       }
 
-      const withDist = defenders.current.map((d, i) => ({ i, d, dist: distance(d, puckPos) }));
+      const withDist = defenders.current.map((d, i) => ({
+        i,
+        d,
+        dist: Math.sqrt(Math.pow(d.x - puckPos.x, 2) + Math.pow(d.y - puckPos.y, 2)),
+      }));
       withDist.sort((a, b) => a.dist - b.dist);
       const engageCount = Math.min(2, defenders.current.length);
 
@@ -554,8 +542,10 @@ export default function HockeyIQGame() {
 
       if (defenderWithPuck) {
         const inContact =
-          distance(player.current, defenderWithPuck) <
-          player.current.radius + defenderWithPuck.radius + 6;
+          Math.sqrt(
+            Math.pow(player.current.x - defenderWithPuck.x, 2) +
+            Math.pow(player.current.y - defenderWithPuck.y, 2)
+          ) < player.current.radius + defenderWithPuck.radius + 6;
 
         if (inContact) {
           if (stealTargetRef.current !== defenderWithPuck) {
@@ -564,11 +554,7 @@ export default function HockeyIQGame() {
           }
 
           const requiredPresses = 5;
-          setMessage(
-            showTouchControls
-              ? "Stay on the puck carrier. Hold Battle in contact to steal it."
-              : "Stay on the puck carrier. Keep pressing Enter while in contact to steal it."
-          );
+          setMessage("Stay on the puck carrier. Hold Battle in contact to steal it.");
           setBattleMeter(Math.min(100, (battlePresses.current / requiredPresses) * 100));
 
           if (battlePresses.current >= requiredPresses) {
@@ -590,11 +576,7 @@ export default function HockeyIQGame() {
           if (stealTargetRef.current === defenderWithPuck || battlePresses.current > 0) {
             battlePresses.current = Math.max(0, battlePresses.current - 0.2);
             setBattleMeter(Math.min(100, (battlePresses.current / 7) * 100));
-            setMessage(
-              showTouchControls
-                ? "Re-engage and hold Battle on the puck carrier."
-                : "Re-engage the puck carrier and keep pressing Enter in contact."
-            );
+            setMessage("Re-engage and hold Battle on the puck carrier.");
           }
           stealTargetRef.current = null;
         }
@@ -604,7 +586,12 @@ export default function HockeyIQGame() {
       stealTargetRef.current = null;
       if (hasPuckRef.current || shotInFlight.current) return;
 
-      const nearPuck = distance(player.current, puck.current) < 28;
+      const nearPuck =
+        Math.sqrt(
+          Math.pow(player.current.x - puck.current.x, 2) +
+          Math.pow(player.current.y - puck.current.y, 2)
+        ) < 28;
+
       if (!nearPuck) {
         if (battlePresses.current > 0) {
           battlePresses.current = Math.max(0, battlePresses.current - 0.08);
@@ -613,7 +600,14 @@ export default function HockeyIQGame() {
         return;
       }
 
-      const nearbyDefenders = defenders.current.filter((d) => distance(d, puck.current) < 36);
+      const nearbyDefenders = defenders.current.filter(
+        (d) =>
+          Math.sqrt(
+            Math.pow(d.x - puck.current.x, 2) +
+            Math.pow(d.y - puck.current.y, 2)
+          ) < 36
+      );
+
       const inBattle = nearbyDefenders.length > 0;
 
       if (!inBattle) {
@@ -630,11 +624,7 @@ export default function HockeyIQGame() {
       }
 
       const requiredPresses = Math.max(3, Math.floor((4 + nearbyDefenders.length * 3) * 0.66));
-      setMessage(
-        showTouchControls
-          ? "Battle at the puck. Hold Battle to win it."
-          : "Battle at the puck. Keep tapping Enter to win it."
-      );
+      setMessage("Battle at the puck. Hold Battle to win it.");
 
       if (battlePresses.current >= requiredPresses) {
         setHasPuck(true);
@@ -663,8 +653,14 @@ export default function HockeyIQGame() {
 
       const inSlot = player.current.x > 540 && player.current.y > 170 && player.current.y < 330;
       const traffic = defenders.current.filter(
-        (d) => d.x > player.current.x && distance(d, player.current) < 120
+        (d) =>
+          d.x > player.current.x &&
+          Math.sqrt(
+            Math.pow(d.x - player.current.x, 2) +
+            Math.pow(d.y - player.current.y, 2)
+          ) < 120
       ).length;
+
       const lateralDistanceFromGoalie = player.current.y - oppGoalie.current.y;
       const angleBias = Math.min(1, Math.abs(lateralDistanceFromGoalie) / 90);
       const shotQuality = ((inSlot ? 0.68 : 0.32) - traffic * 0.12 + angleBias * 0.12) * 1.45;
@@ -681,10 +677,9 @@ export default function HockeyIQGame() {
         else if (cornerChoice < 0.8) targetY = 270 + Math.random() * 18;
         else {
           const edgeOffset = nearSidePreference > 0 ? 24 : -24;
-          targetY = clamp(
-            oppGoalie.current.y + edgeOffset + (Math.random() * 18 - 9),
+          targetY = Math.max(
             210,
-            290
+            Math.min(290, oppGoalie.current.y + edgeOffset + (Math.random() * 18 - 9))
           );
         }
         if (targetY > goalieTop && targetY < goalieBottom) {
@@ -734,18 +729,19 @@ export default function HockeyIQGame() {
           const playerPush = hasPuckRef.current ? 0.36 : 0.7;
           const defenderPush = hasPuckRef.current ? 0.18 : 0.3;
 
-          player.current.x = clamp(player.current.x + nx * overlap * playerPush, 20, 780);
-          player.current.y = clamp(player.current.y + ny * overlap * playerPush, 20, 480);
-          d.x = clamp(d.x - nx * overlap * defenderPush, 18, 782);
-          d.y = clamp(d.y - ny * overlap * defenderPush, 18, 482);
+          player.current.x = Math.max(20, Math.min(780, player.current.x + nx * overlap * playerPush));
+          player.current.y = Math.max(20, Math.min(480, player.current.y + ny * overlap * playerPush));
+          d.x = Math.max(18, Math.min(782, d.x - nx * overlap * defenderPush));
+          d.y = Math.max(18, Math.min(482, d.y - ny * overlap * defenderPush));
 
           if (hasPuckRef.current) setMessage("Heavy contact. Protect it or move it.");
-          else if (distance(player.current, puck.current) < 30) {
-            setMessage(
-              showTouchControls
-                ? "Stay on it. Hold Battle to win the puck."
-                : "Stay on it. Keep hammering Enter to win the puck battle."
-            );
+          else if (
+            Math.sqrt(
+              Math.pow(player.current.x - puck.current.x, 2) +
+              Math.pow(player.current.y - puck.current.y, 2)
+            ) < 30
+          ) {
+            setMessage("Stay on it. Hold Battle to win the puck.");
           }
         }
       });
@@ -761,7 +757,11 @@ export default function HockeyIQGame() {
 
       const pressureRadius = player.current.radius + 12;
       const touching = defenders.current.filter(
-        (d) => distance(player.current, d) < pressureRadius + d.radius
+        (d) =>
+          Math.sqrt(
+            Math.pow(player.current.x - d.x, 2) +
+            Math.pow(player.current.y - d.y, 2)
+          ) < pressureRadius + d.radius
       );
 
       if (touching.length === 0) {
@@ -773,7 +773,15 @@ export default function HockeyIQGame() {
 
       const primary = touching
         .slice()
-        .sort((a, b) => distance(a, player.current) - distance(b, player.current))[0];
+        .sort((a, b) => {
+          const da = Math.sqrt(
+            Math.pow(player.current.x - a.x, 2) + Math.pow(player.current.y - a.y, 2)
+          );
+          const db = Math.sqrt(
+            Math.pow(player.current.x - b.x, 2) + Math.pow(player.current.y - b.y, 2)
+          );
+          return da - db;
+        })[0];
 
       stripTargetRef.current = primary;
 
@@ -896,7 +904,7 @@ export default function HockeyIQGame() {
       mounted = false;
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
     };
-  }, [level, showTouchControls]);
+  }, [level]);
 
   const startBattleTouch = () => {
     if (hasPuckRef.current) return;
@@ -970,16 +978,17 @@ export default function HockeyIQGame() {
     }
   };
 
-const joystickSize = showTouchControls ? 110 : 140;
-const actionSize = showTouchControls ? 84 : 110;
-const stickSize = showTouchControls ? 40 : 56;
+  const joystickSize = 110;
+  const actionSize = 84;
+  const stickSize = 40;
 
   return (
     <div
       ref={wrapRef}
       style={{
         textAlign: "center",
-        padding: showTouchControls ? 10 : 20,
+        padding: 12,
+        paddingBottom: 132,
         fontFamily: "Arial, sans-serif",
         touchAction: "none",
         minHeight: "100vh",
@@ -990,8 +999,8 @@ const stickSize = showTouchControls ? 40 : 56;
     >
       <h1
         style={{
-          margin: showTouchControls ? "0 0 8px" : "0 0 12px",
-          fontSize: showTouchControls ? 28 : 32,
+          margin: "0 0 8px",
+          fontSize: 28,
         }}
       >
         Hockey IQ Game
@@ -1005,7 +1014,7 @@ const stickSize = showTouchControls ? 40 : 56;
           background: "white",
           borderRadius: 18,
           boxShadow: "0 8px 24px rgba(15,23,42,0.08)",
-          padding: showTouchControls ? 10 : 14,
+          padding: 10,
           boxSizing: "border-box",
         }}
       >
@@ -1028,7 +1037,7 @@ const stickSize = showTouchControls ? 40 : 56;
         <div
           style={{
             marginTop: 10,
-            fontSize: showTouchControls ? 18 : 16,
+            fontSize: 18,
             fontWeight: 700,
           }}
         >
@@ -1085,7 +1094,7 @@ const stickSize = showTouchControls ? 40 : 56;
           style={{
             marginTop: 10,
             fontWeight: 700,
-            fontSize: showTouchControls ? 18 : 16,
+            fontSize: 18,
             minHeight: 28,
           }}
         >
@@ -1096,55 +1105,41 @@ const stickSize = showTouchControls ? 40 : 56;
           style={{
             color: "#4b5563",
             margin: "4px 0 0",
-            fontSize: showTouchControls ? 16 : 14,
+            fontSize: 16,
           }}
         >
-          {showTouchControls ? (
-            <>
-              Left thumb skates. Hold <strong>Battle</strong> in contact to win the
-              scrum. Tap <strong>Shoot</strong> when you have the puck. Defend the
-              left net and attack the right net.
-            </>
-          ) : (
-            <>
-              Arrow keys to skate. Tap <strong>Enter</strong> to win battles and{" "}
-              <strong>Space</strong> to shoot. Defend the left net and attack the
-              right net.
-            </>
-          )}
+          Left thumb skates. Hold <strong>Battle</strong> in contact to win the
+          scrum. Tap <strong>Shoot</strong> when you have the puck. Defend the
+          left net and attack the right net.
         </p>
       </div>
 
-      <div style={{ marginTop: 8, flexShrink: 0 }}>
-        <button
-          onClick={() => setForceTouchControls((v) => !v)}
-          style={{
-            border: "1px solid #cbd5e1",
-            background: forceTouchControls ? "#dbeafe" : "white",
-            color: "#0f172a",
-            borderRadius: 9999,
-            padding: "8px 14px",
-            fontWeight: 700,
-            cursor: "pointer",
-          }}
-        >
-          {forceTouchControls ? "Hide Touch Controls" : "Show Touch Controls"}
-        </button>
-      </div>
-
-      {showTouchControls && (
+      <div
+        style={{
+          position: "fixed",
+          left: 0,
+          right: 0,
+          bottom: 0,
+          width: "100%",
+          padding: "8px 10px max(10px, env(safe-area-inset-bottom))",
+          boxSizing: "border-box",
+          background: "rgba(248,251,255,0.96)",
+          backdropFilter: "blur(8px)",
+          WebkitBackdropFilter: "blur(8px)",
+          borderTop: "1px solid rgba(203,213,225,0.9)",
+          zIndex: 50,
+        }}
+      >
         <div
-style={{
-  width: "100%",
-  maxWidth: viewport.width,
-  margin: "8px auto 0",
-  padding: "0 8px 8px",
-  boxSizing: "border-box",
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "flex-end",
-  gap: 8,
-}}
+          style={{
+            width: "100%",
+            maxWidth: 980,
+            margin: "0 auto",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-end",
+            gap: 10,
+          }}
         >
           <div
             ref={joystickBaseRef}
@@ -1172,15 +1167,15 @@ style={{
                 borderRadius: "50%",
                 background: "rgba(37,99,235,0.65)",
                 position: "absolute",
-                left: `calc(50% - ${stickSize / 2}px + ${joystickVisual.x * 30}px)`,
-                top: `calc(50% - ${stickSize / 2}px + ${joystickVisual.y * 30}px)`,
+                left: `calc(50% - ${stickSize / 2}px + ${joystickVisual.x * 28}px)`,
+                top: `calc(50% - ${stickSize / 2}px + ${joystickVisual.y * 28}px)`,
                 transition: joystickTouchId.current === null ? "all 0.08s linear" : "none",
                 boxShadow: "0 4px 10px rgba(37,99,235,0.25)",
               }}
             />
           </div>
 
-          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 10, alignItems: "center", flexShrink: 0 }}>
             <button
               onTouchStart={startBattleTouch}
               onTouchEnd={stopBattleTouch}
@@ -1192,7 +1187,7 @@ style={{
                 border: "none",
                 background: "#16a34a",
                 color: "white",
-                fontSize: 20,
+                fontSize: 18,
                 fontWeight: 800,
                 boxShadow: "0 8px 18px rgba(22,163,74,0.25)",
                 touchAction: "manipulation",
@@ -1209,7 +1204,7 @@ style={{
                 border: "none",
                 background: "#2563eb",
                 color: "white",
-                fontSize: 20,
+                fontSize: 18,
                 fontWeight: 800,
                 boxShadow: "0 8px 18px rgba(37,99,235,0.25)",
                 touchAction: "manipulation",
@@ -1219,7 +1214,7 @@ style={{
             </button>
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }
