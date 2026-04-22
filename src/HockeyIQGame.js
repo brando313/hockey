@@ -13,9 +13,12 @@ export default function HockeyIQGame() {
   const [goalOverlay, setGoalOverlay] = useState(false);
   const [goalText, setGoalText] = useState("GOAL!");
   const [isTouchDevice, setIsTouchDevice] = useState(false);
+  const [forceTouchControls, setForceTouchControls] = useState(false);
   const [viewport, setViewport] = useState({ width: 900, scale: 1 });
   const goalOverlayRef = useRef(false);
   const goalTypeRef = useRef("player");
+
+  const showTouchControls = isTouchDevice || forceTouchControls;
 
   const RINK_W = 800;
   const RINK_H = 500;
@@ -87,7 +90,7 @@ export default function HockeyIQGame() {
     defenderShotCooldown.current = 0;
     clearPossession();
     setMessage(
-      isTouchDevice
+      showTouchControls
         ? "Two-way play. Win the puck, defend your net, and attack theirs."
         : "Two-way play. Win the puck, defend your net, and attack theirs."
     );
@@ -108,10 +111,22 @@ export default function HockeyIQGame() {
 
   useEffect(() => {
     const detectTouch = () => {
-      const detected =
+      const touchCapable =
+        typeof navigator !== "undefined" &&
+        (
+          (navigator.maxTouchPoints && navigator.maxTouchPoints > 0) ||
+          (navigator.msMaxTouchPoints && navigator.msMaxTouchPoints > 0)
+        );
+
+      const touchEventSupport =
+        typeof window !== "undefined" && "ontouchstart" in window;
+
+      const coarsePointer =
         typeof window !== "undefined" &&
-        ("ontouchstart" in window || navigator.maxTouchPoints > 0);
-      setIsTouchDevice(detected);
+        typeof window.matchMedia === "function" &&
+        window.matchMedia("(pointer: coarse)").matches;
+
+      setIsTouchDevice(Boolean(touchCapable || touchEventSupport || coarsePointer));
     };
 
     const measure = () => {
@@ -370,7 +385,7 @@ export default function HockeyIQGame() {
         distance(puck.current, teamGoalie.current) <
         teamGoalie.current.radius + puck.current.radius + 2;
 
-      if (homeSave && !hasPuckRef.current && carrier && puck.current.x < 140) {
+      if (homeSave && !hasPuckRef.current && defenders.current.find((d) => d.hasPuck) && puck.current.x < 140) {
         puck.current.vx = 2.8 + Math.random() * 2;
         puck.current.vy = (Math.random() - 0.5) * 3;
         defenders.current.forEach((d) => {
@@ -553,7 +568,7 @@ export default function HockeyIQGame() {
 
           const requiredPresses = 5;
           setMessage(
-            isTouchDevice
+            showTouchControls
               ? "Stay on the puck carrier. Hold Battle in contact to steal it."
               : "Stay on the puck carrier. Keep pressing Enter while in contact to steal it."
           );
@@ -579,7 +594,7 @@ export default function HockeyIQGame() {
             battlePresses.current = Math.max(0, battlePresses.current - 0.2);
             setBattleMeter(Math.min(100, (battlePresses.current / 7) * 100));
             setMessage(
-              isTouchDevice
+              showTouchControls
                 ? "Re-engage and hold Battle on the puck carrier."
                 : "Re-engage the puck carrier and keep pressing Enter in contact."
             );
@@ -619,7 +634,7 @@ export default function HockeyIQGame() {
 
       const requiredPresses = Math.max(3, Math.floor((4 + nearbyDefenders.length * 3) * 0.66));
       setMessage(
-        isTouchDevice
+        showTouchControls
           ? "Battle at the puck. Hold Battle to win it."
           : "Battle at the puck. Keep tapping Enter to win it."
       );
@@ -730,7 +745,7 @@ export default function HockeyIQGame() {
           if (hasPuckRef.current) setMessage("Heavy contact. Protect it or move it.");
           else if (distance(player.current, puck.current) < 30) {
             setMessage(
-              isTouchDevice
+              showTouchControls
                 ? "Stay on it. Hold Battle to win the puck."
                 : "Stay on it. Keep hammering Enter to win the puck battle."
             );
@@ -884,7 +899,7 @@ export default function HockeyIQGame() {
       mounted = false;
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
     };
-  }, [level, isTouchDevice]);
+  }, [level, showTouchControls]);
 
   const startBattleTouch = () => {
     if (hasPuckRef.current) return;
@@ -954,16 +969,16 @@ export default function HockeyIQGame() {
     }
   };
 
-  const joystickSize = isTouchDevice ? 160 : 140;
-  const actionSize = isTouchDevice ? 120 : 110;
-  const stickSize = isTouchDevice ? 64 : 56;
+  const joystickSize = showTouchControls ? 160 : 140;
+  const actionSize = showTouchControls ? 120 : 110;
+  const stickSize = showTouchControls ? 64 : 56;
 
   return (
     <div
       ref={wrapRef}
       style={{
         textAlign: "center",
-        padding: isTouchDevice ? 12 : 20,
+        padding: showTouchControls ? 12 : 20,
         fontFamily: "Arial, sans-serif",
         touchAction: "none",
         minHeight: "100vh",
@@ -973,8 +988,8 @@ export default function HockeyIQGame() {
     >
       <h1
         style={{
-          margin: isTouchDevice ? "0 0 8px" : "0 0 12px",
-          fontSize: isTouchDevice ? 28 : 32,
+          margin: showTouchControls ? "0 0 8px" : "0 0 12px",
+          fontSize: showTouchControls ? 28 : 32,
         }}
       >
         Hockey IQ Game
@@ -988,7 +1003,7 @@ export default function HockeyIQGame() {
           background: "white",
           borderRadius: 18,
           boxShadow: "0 8px 24px rgba(15,23,42,0.08)",
-          padding: isTouchDevice ? 10 : 14,
+          padding: showTouchControls ? 10 : 14,
           boxSizing: "border-box",
         }}
       >
@@ -1010,7 +1025,7 @@ export default function HockeyIQGame() {
         <div
           style={{
             marginTop: 10,
-            fontSize: isTouchDevice ? 18 : 16,
+            fontSize: showTouchControls ? 18 : 16,
             fontWeight: 700,
           }}
         >
@@ -1067,7 +1082,7 @@ export default function HockeyIQGame() {
           style={{
             marginTop: 10,
             fontWeight: 700,
-            fontSize: isTouchDevice ? 18 : 16,
+            fontSize: showTouchControls ? 18 : 16,
             minHeight: 28,
           }}
         >
@@ -1078,10 +1093,10 @@ export default function HockeyIQGame() {
           style={{
             color: "#4b5563",
             margin: "4px 0 0",
-            fontSize: isTouchDevice ? 16 : 14,
+            fontSize: showTouchControls ? 16 : 14,
           }}
         >
-          {isTouchDevice ? (
+          {showTouchControls ? (
             <>
               Left thumb skates. Hold <strong>Battle</strong> in contact to win the
               scrum. Tap <strong>Shoot</strong> when you have the puck. Defend the
@@ -1097,7 +1112,24 @@ export default function HockeyIQGame() {
         </p>
       </div>
 
-      {isTouchDevice && (
+      <div style={{ marginTop: 10 }}>
+        <button
+          onClick={() => setForceTouchControls((v) => !v)}
+          style={{
+            border: "1px solid #cbd5e1",
+            background: forceTouchControls ? "#dbeafe" : "white",
+            color: "#0f172a",
+            borderRadius: 9999,
+            padding: "8px 14px",
+            fontWeight: 700,
+            cursor: "pointer",
+          }}
+        >
+          {forceTouchControls ? "Hide Touch Controls" : "Show Touch Controls"}
+        </button>
+      </div>
+
+      {showTouchControls && (
         <div
           style={{
             width: viewport.width,
