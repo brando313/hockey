@@ -11,13 +11,11 @@ export default function HockeyIQGame() {
   const [battleMeter, setBattleMeter] = useState(0);
   const [stripMeter, setStripMeter] = useState(0);
   const [goalText, setGoalText] = useState("GOAL!");
-  const [joystickVisual, setJoystickVisual] = useState({ x: 0, y: 0 });
   const [viewport, setViewport] = useState({ width: 900, scale: 1 });
+  const [joystickVisual, setJoystickVisual] = useState({ x: 0, y: 0 });
 
   const goalOverlayRef = useRef(false);
   const goalTypeRef = useRef("player");
-
-  const showTouchControls = true;
 
   const RINK_W = 800;
   const RINK_H = 500;
@@ -54,6 +52,8 @@ export default function HockeyIQGame() {
   const joystickTouchId = useRef(null);
   const joystickBaseRef = useRef(null);
   const battleDecayRef = useRef(null);
+
+  const showTouchControls = true;
 
   const clearPossession = () => {
     defenders.current.forEach((d) => {
@@ -397,10 +397,7 @@ export default function HockeyIQGame() {
       if (defenderWithPuck) {
         const nearHomeNet = defenderWithPuck.x < 165;
         const insideLane = defenderWithPuck.y > 170 && defenderWithPuck.y < 330;
-        const openToShoot = Math.sqrt(
-          Math.pow(defenderWithPuck.x - player.current.x, 2) +
-          Math.pow(defenderWithPuck.y - player.current.y, 2)
-        ) > 26;
+        const openToShoot = distance(defenderWithPuck, player.current) > 26;
 
         if (
           nearHomeNet &&
@@ -433,10 +430,7 @@ export default function HockeyIQGame() {
 
         if (
           defenderCarryTarget.current.timer <= 0 ||
-          Math.sqrt(
-            Math.pow(defenderWithPuck.x - defenderCarryTarget.current.x, 2) +
-            Math.pow(defenderWithPuck.y - defenderCarryTarget.current.y, 2)
-          ) < 24
+          distance(defenderWithPuck, defenderCarryTarget.current) < 24
         ) {
           defenderCarryTarget.current = {
             x: defenderWithPuck.x > 190 ? 110 + Math.random() * 80 : 90 + Math.random() * 55,
@@ -475,11 +469,7 @@ export default function HockeyIQGame() {
         return;
       }
 
-      const withDist = defenders.current.map((d, i) => ({
-        i,
-        d,
-        dist: Math.sqrt(Math.pow(d.x - puckPos.x, 2) + Math.pow(d.y - puckPos.y, 2)),
-      }));
+      const withDist = defenders.current.map((d, i) => ({ i, d, dist: distance(d, puckPos) }));
       withDist.sort((a, b) => a.dist - b.dist);
       const engageCount = Math.min(2, defenders.current.length);
 
@@ -542,10 +532,8 @@ export default function HockeyIQGame() {
 
       if (defenderWithPuck) {
         const inContact =
-          Math.sqrt(
-            Math.pow(player.current.x - defenderWithPuck.x, 2) +
-            Math.pow(player.current.y - defenderWithPuck.y, 2)
-          ) < player.current.radius + defenderWithPuck.radius + 6;
+          distance(player.current, defenderWithPuck) <
+          player.current.radius + defenderWithPuck.radius + 6;
 
         if (inContact) {
           if (stealTargetRef.current !== defenderWithPuck) {
@@ -586,12 +574,7 @@ export default function HockeyIQGame() {
       stealTargetRef.current = null;
       if (hasPuckRef.current || shotInFlight.current) return;
 
-      const nearPuck =
-        Math.sqrt(
-          Math.pow(player.current.x - puck.current.x, 2) +
-          Math.pow(player.current.y - puck.current.y, 2)
-        ) < 28;
-
+      const nearPuck = distance(player.current, puck.current) < 28;
       if (!nearPuck) {
         if (battlePresses.current > 0) {
           battlePresses.current = Math.max(0, battlePresses.current - 0.08);
@@ -600,14 +583,7 @@ export default function HockeyIQGame() {
         return;
       }
 
-      const nearbyDefenders = defenders.current.filter(
-        (d) =>
-          Math.sqrt(
-            Math.pow(d.x - puck.current.x, 2) +
-            Math.pow(d.y - puck.current.y, 2)
-          ) < 36
-      );
-
+      const nearbyDefenders = defenders.current.filter((d) => distance(d, puck.current) < 36);
       const inBattle = nearbyDefenders.length > 0;
 
       if (!inBattle) {
@@ -653,14 +629,8 @@ export default function HockeyIQGame() {
 
       const inSlot = player.current.x > 540 && player.current.y > 170 && player.current.y < 330;
       const traffic = defenders.current.filter(
-        (d) =>
-          d.x > player.current.x &&
-          Math.sqrt(
-            Math.pow(d.x - player.current.x, 2) +
-            Math.pow(d.y - player.current.y, 2)
-          ) < 120
+        (d) => d.x > player.current.x && distance(d, player.current) < 120
       ).length;
-
       const lateralDistanceFromGoalie = player.current.y - oppGoalie.current.y;
       const angleBias = Math.min(1, Math.abs(lateralDistanceFromGoalie) / 90);
       const shotQuality = ((inSlot ? 0.68 : 0.32) - traffic * 0.12 + angleBias * 0.12) * 1.45;
@@ -677,9 +647,10 @@ export default function HockeyIQGame() {
         else if (cornerChoice < 0.8) targetY = 270 + Math.random() * 18;
         else {
           const edgeOffset = nearSidePreference > 0 ? 24 : -24;
-          targetY = Math.max(
+          targetY = clamp(
+            oppGoalie.current.y + edgeOffset + (Math.random() * 18 - 9),
             210,
-            Math.min(290, oppGoalie.current.y + edgeOffset + (Math.random() * 18 - 9))
+            290
           );
         }
         if (targetY > goalieTop && targetY < goalieBottom) {
@@ -735,12 +706,7 @@ export default function HockeyIQGame() {
           d.y = Math.max(18, Math.min(482, d.y - ny * overlap * defenderPush));
 
           if (hasPuckRef.current) setMessage("Heavy contact. Protect it or move it.");
-          else if (
-            Math.sqrt(
-              Math.pow(player.current.x - puck.current.x, 2) +
-              Math.pow(player.current.y - puck.current.y, 2)
-            ) < 30
-          ) {
+          else if (distance(player.current, puck.current) < 30) {
             setMessage("Stay on it. Hold Battle to win the puck.");
           }
         }
@@ -756,13 +722,7 @@ export default function HockeyIQGame() {
       }
 
       const pressureRadius = player.current.radius + 12;
-      const touching = defenders.current.filter(
-        (d) =>
-          Math.sqrt(
-            Math.pow(player.current.x - d.x, 2) +
-            Math.pow(player.current.y - d.y, 2)
-          ) < pressureRadius + d.radius
-      );
+      const touching = defenders.current.filter((d) => distance(player.current, d) < pressureRadius + d.radius);
 
       if (touching.length === 0) {
         stripTargetRef.current = null;
@@ -773,24 +733,15 @@ export default function HockeyIQGame() {
 
       const primary = touching
         .slice()
-        .sort((a, b) => {
-          const da = Math.sqrt(
-            Math.pow(player.current.x - a.x, 2) + Math.pow(player.current.y - a.y, 2)
-          );
-          const db = Math.sqrt(
-            Math.pow(player.current.x - b.x, 2) + Math.pow(player.current.y - b.y, 2)
-          );
-          return da - db;
-        })[0];
+        .sort((a, b) => distance(a, player.current) - distance(b, player.current))[0];
 
       stripTargetRef.current = primary;
 
       const playerMove = Math.sqrt(
         Math.pow(player.current.x - prevPlayer.current.x, 2) +
-          Math.pow(player.current.y - prevPlayer.current.y, 2)
+        Math.pow(player.current.y - prevPlayer.current.y, 2)
       );
-      const pinnedBonus =
-        player.current.x > 730 || player.current.y < 30 || player.current.y > 470 ? 0.45 : 0;
+      const pinnedBonus = player.current.x > 730 || player.current.y < 30 || player.current.y > 470 ? 0.45 : 0;
       const movementPenalty = playerMove > 2.8 ? 1.35 : playerMove > 1.6 ? 0.7 : 0.15;
       const gain = Math.max(0.18, 0.75 + touching.length * 0.45 + pinnedBonus - movementPenalty);
 
@@ -828,9 +779,7 @@ export default function HockeyIQGame() {
 
       const rightGoal =
         (rightCrossed && rightYAtCross >= GOAL_TOP && rightYAtCross <= GOAL_BOTTOM) ||
-        (puck.current.x >= RIGHT_GOAL_LINE_X &&
-          puck.current.y >= GOAL_TOP &&
-          puck.current.y <= GOAL_BOTTOM);
+        (puck.current.x >= RIGHT_GOAL_LINE_X && puck.current.y >= GOAL_TOP && puck.current.y <= GOAL_BOTTOM);
 
       const leftCrossed = prevPuck.current.x > LEFT_GOAL_LINE_X && puck.current.x <= LEFT_GOAL_LINE_X;
       const leftYAtCross =
@@ -843,9 +792,7 @@ export default function HockeyIQGame() {
 
       const leftGoal =
         (leftCrossed && leftYAtCross >= GOAL_TOP && leftYAtCross <= GOAL_BOTTOM) ||
-        (puck.current.x <= LEFT_GOAL_LINE_X &&
-          puck.current.y >= GOAL_TOP &&
-          puck.current.y <= GOAL_BOTTOM);
+        (puck.current.x <= LEFT_GOAL_LINE_X && puck.current.y >= GOAL_TOP && puck.current.y <= GOAL_BOTTOM);
 
       if ((rightGoal && (shotInFlight.current || hasPuckRef.current)) && !goalOverlayRef.current) {
         puck.current.vx = 0;
@@ -955,12 +902,14 @@ export default function HockeyIQGame() {
   };
 
   const handleJoystickStart = (e) => {
+    e.preventDefault();
     const touch = e.changedTouches[0];
     joystickTouchId.current = touch.identifier;
     updateJoystickFromTouch(touch);
   };
 
   const handleJoystickMove = (e) => {
+    e.preventDefault();
     const touch = Array.from(e.changedTouches).find(
       (t) => t.identifier === joystickTouchId.current
     );
@@ -1115,20 +1064,20 @@ export default function HockeyIQGame() {
       </div>
 
       <div
-style={{
-  position: "fixed",
-  left: 0,
-  right: 0,
-  bottom: 0,
-  width: "100%",
-  padding: "8px 10px max(10px, env(safe-area-inset-bottom))",
-  boxSizing: "border-box",
-  background: "transparent",
-  backdropFilter: "none",
-  WebkitBackdropFilter: "none",
-  borderTop: "none",
-  zIndex: 50,
-}}
+        style={{
+          position: "fixed",
+          left: 0,
+          right: 0,
+          bottom: 0,
+          width: "100%",
+          padding: "8px 10px max(10px, env(safe-area-inset-bottom))",
+          boxSizing: "border-box",
+          background: "transparent",
+          backdropFilter: "none",
+          WebkitBackdropFilter: "none",
+          borderTop: "none",
+          zIndex: 50,
+        }}
       >
         <div
           style={{
@@ -1158,6 +1107,7 @@ style={{
               userSelect: "none",
               WebkitUserSelect: "none",
               WebkitTouchCallout: "none",
+              touchAction: "none",
             }}
           >
             <div
@@ -1167,9 +1117,11 @@ style={{
                 borderRadius: "50%",
                 background: "rgba(37,99,235,0.65)",
                 position: "absolute",
-                left: `calc(50% - ${stickSize / 2}px + ${joystickVisual.x * 28}px)`,
-                top: `calc(50% - ${stickSize / 2}px + ${joystickVisual.y * 28}px)`,
-                transition: joystickTouchId.current === null ? "all 0.08s linear" : "none",
+                left: `calc(50% - ${stickSize / 2}px)`,
+                top: `calc(50% - ${stickSize / 2}px)`,
+                transform: `translate(${joystickVisual.x * 28}px, ${joystickVisual.y * 28}px)`,
+                transition: joystickTouchId.current === null ? "transform 0.06s linear" : "none",
+                willChange: "transform",
                 boxShadow: "0 4px 10px rgba(37,99,235,0.25)",
               }}
             />
